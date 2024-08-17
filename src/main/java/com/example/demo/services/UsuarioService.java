@@ -12,6 +12,7 @@ import com.example.demo.dtos.AutenticarUsuarioResponse;
 import com.example.demo.dtos.CriarUsuarioRequest;
 import com.example.demo.dtos.CriarUsuarioResponse;
 import com.example.demo.entities.Usuario;
+import com.example.demo.exceptions.AcessoNegadoException;
 import com.example.demo.exceptions.EmailJaCadastradoException;
 import com.example.demo.repositories.PerfilRepository;
 import com.example.demo.repositories.UsuarioRepository;
@@ -54,7 +55,19 @@ public class UsuarioService {
 	
 	public AutenticarUsuarioResponse autenticar(AutenticarUsuarioRequest request) throws Exception {
 		
-		//TODO
-		return null;
+		Usuario usuario = usuarioRepository.findByEmailAndSenha(request.getEmail(), sha256Component.hash(request.getSenha()));
+		
+		if(usuario == null)
+			throw new AcessoNegadoException();
+		
+		AutenticarUsuarioResponse response = new AutenticarUsuarioResponse();
+		response.setId(usuario.getId());
+		response.setNome(usuario.getNome());
+		response.setEmail(usuario.getEmail());
+		response.setDataHoraAcesso(new Date());
+		response.setTokenAcesso(null); //TODO
+		response.setDataHoraExpiracao(null); //TODO
+		
+		return response;
 	}
 }

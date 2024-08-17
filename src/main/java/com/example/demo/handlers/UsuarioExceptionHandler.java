@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+import com.example.demo.exceptions.AcessoNegadoException;
 import com.example.demo.exceptions.EmailJaCadastradoException;
 
 public class UsuarioExceptionHandler {
@@ -22,5 +23,17 @@ public class UsuarioExceptionHandler {
 
 		return errors;
 	}
+	
+	@ExceptionHandler(AcessoNegadoException.class)
+	@ResponseStatus(HttpStatus.UNAUTHORIZED)
+	@ResponseBody
+	public List<String> errorHandler(AcessoNegadoException e) {
+		
+		List<String> errors = new ArrayList<String>();
+		errors.add(e.getMessage());
+		
+		return errors;
+	}
+
 
 }
