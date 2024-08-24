@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.components.JwtTokenComponent;
+import com.example.demo.components.RabbitMQProducerComponent;
 import com.example.demo.components.SHA256Component;
 import com.example.demo.dtos.AutenticarUsuarioRequest;
 import com.example.demo.dtos.AutenticarUsuarioResponse;
 import com.example.demo.dtos.CriarUsuarioRequest;
 import com.example.demo.dtos.CriarUsuarioResponse;
+import com.example.demo.dtos.MensagemUsuarioResponse;
 import com.example.demo.dtos.ObterDadosResponse;
 import com.example.demo.entities.Usuario;
 import com.example.demo.exceptions.AcessoNegadoException;
@@ -24,47 +26,57 @@ public class UsuarioService {
 
 	@Autowired
 	private UsuarioRepository usuarioRepository;
-	
+
 	@Autowired
 	private PerfilRepository perfilRepository;
-	
+
 	@Autowired
 	private SHA256Component sha256Component;
-	
-	@Autowired 
+
+	@Autowired
 	private JwtTokenComponent jwtTokenComponent;
+	
+	@Autowired
+	private RabbitMQProducerComponent rabbitMQProducerComponent;
 
 	public CriarUsuarioResponse criar(CriarUsuarioRequest request) throws Exception {
-		
-		if(usuarioRepository.findByEmail(request.getEmail()) != null)
+
+		if (usuarioRepository.findByEmail(request.getEmail()) != null)
 			throw new EmailJaCadastradoException();
-		
+
 		Usuario usuario = new Usuario();
-		
+
 		usuario.setId(UUID.randomUUID());
 		usuario.setNome(request.getNome());
 		usuario.setEmail(request.getEmail());
 		usuario.setSenha(sha256Component.hash(request.getSenha()));
 		usuario.setPerfil(perfilRepository.findByNome("DEFAULT"));
-		
+
 		usuarioRepository.save(usuario);
-		
+
+		MensagemUsuarioResponse mensagem = new MensagemUsuarioResponse();
+		mensagem.setEmailDestinatario(usuario.getEmail());
+		mensagem.setAssunto("Confirmação de cadastro");
+		mensagem.setTexto("Olá, " + usuario.getNome() + ". Parabéns, seu cadastro foi realizado com sucesso!");
+		rabbitMQProducerComponent.send(mensagem);
+
 		CriarUsuarioResponse response = new CriarUsuarioResponse();
 		response.setId(usuario.getId());
 		response.setNome(usuario.getNome());
 		response.setEmail(usuario.getEmail());
 		response.setDataHoraCadastro(new Date());
-		
+
 		return response;
 	}
-	
+
 	public AutenticarUsuarioResponse autenticar(AutenticarUsuarioRequest request) throws Exception {
-		
-		Usuario usuario = usuarioRepository.findByEmailAndSenha(request.getEmail(), sha256Component.hash(request.getSenha()));
-		
-		if(usuario == null)
+
+		Usuario usuario = usuarioRepository.findByEmailAndSenha(request.getEmail(),
+				sha256Component.hash(request.getSenha()));
+
+		if (usuario == null)
 			throw new AcessoNegadoException();
-		
+
 		AutenticarUsuarioResponse response = new AutenticarUsuarioResponse();
 		response.setId(usuario.getId());
 		response.setNome(usuario.getNome());
@@ -73,26 +85,26 @@ public class UsuarioService {
 		response.setTokenAcesso(jwtTokenComponent.generateToken(usuario));
 		response.setDataHoraExpiracao(jwtTokenComponent.getExpirationDate());
 		response.setNomePerfil(usuario.getPerfil().getNome());
-		
+
 		return response;
 	}
-	
+
 	public ObterDadosResponse obterDados(String token) throws Exception {
-		
+
 		String email = jwtTokenComponent.getEmailFromToken(token);
-		
+
 		Usuario usuario = usuarioRepository.findByEmail(email);
-		
-		if(usuario == null)
+
+		if (usuario == null)
 			throw new AcessoNegadoException();
-		
+
 		ObterDadosResponse response = new ObterDadosResponse();
-		
+
 		response.setId(usuario.getId());
 		response.setNome(usuario.getNome());
 		response.setEmail(usuario.getEmail());
-		response.setNomePerfil(usuario.getPerfil().getNome());		
-		
+		response.setNomePerfil(usuario.getPerfil().getNome());
+
 		return response;
 	}
 }

@@ -4,10 +4,10 @@ import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import filters.JwtBearerFilter;
+import com.example.demo.filters.JwtBearerFilter;
 
 @Configuration
-public class JwtBearerConfiguration {
+public class JwtBearerConfig {
 
 	@Bean
 	FilterRegistrationBean<JwtBearerFilter> jwtFilter() {
