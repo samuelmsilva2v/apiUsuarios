@@ -1,11 +1,18 @@
 package com.example.demo.components;
 
+import java.util.Date;
+import java.util.UUID;
+
+import org.springframework.amqp.AmqpException;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.example.demo.collections.LogMensageria;
 import com.example.demo.dtos.MensagemUsuarioResponse;
+import com.example.demo.repositories.LogMensageriaRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Component
@@ -20,11 +27,34 @@ public class RabbitMQProducerComponent {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private LogMensageriaRepository logMensageriaRepository;
+
 	public void send(MensagemUsuarioResponse mensagem) throws Exception {
 
-		String json = objectMapper.writeValueAsString(mensagem);
+		LogMensageria logMensageria = new LogMensageria();
+		logMensageria.setId(UUID.randomUUID());
+		logMensageria.setDataHora(new Date());
+		logMensageria.setOperacao("ENVIO DE MENSAGEM PARA A FILA");
 
-		rabbitTemplate.convertAndSend(queue.getName(), json);
+		try {
+			
+			String json = objectMapper.writeValueAsString(mensagem);
+
+			rabbitTemplate.convertAndSend(queue.getName(), json);
+			
+			logMensageria.setStatus("SUCESSO");
+			logMensageria.setDescricao(json);
+		} 
+		catch (Exception e) {
+			
+			logMensageria.setStatus("ERRO");
+			logMensageria.setDescricao(e.getMessage());
+		}
+		finally {
+			logMensageriaRepository.save(logMensageria);
+		}
+	
 	}
 
 }
